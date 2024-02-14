@@ -4,6 +4,8 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+
 
 interface ShekelContract {
     function mint(address _to, uint256 _amount) external;
@@ -14,9 +16,18 @@ interface SkinContract {
 }
 
 contract JewNFT is ERC721, Ownable {
+     AggregatorV3Interface internal priceFeed;
+    uint256 public ethPrice;
+    // The aggregator of the ETH/USD pair on the Goerli testnet
+    address priceAggregatorAddress = 0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419;
+    
     address public jewAddress;
     address public shekelAddress;
     address public foreskinAddress;
+    address public USDT = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
+    address public USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address public ETH;
+    address public marketingWallet;
     string strBaseURI;
     bool burnFinished = false;
 
@@ -35,8 +46,9 @@ contract JewNFT is ERC721, Ownable {
 
     mapping(uint256 => TierInfo) public tierInfo;
     mapping(address => StakeInfo) public stakeInfo;
-    // mapping(address => SkinHolder) public skinHolder;
     mapping(address => uint256) private skinHolder;
+    mapping(address => bool) public acceptedTokens;
+    mapping(address => uint256) public pricePerTokens;
 
     constructor(
         string memory strName,
@@ -45,9 +57,49 @@ contract JewNFT is ERC721, Ownable {
         address _shekelAddress,
         address _skinAddress
     ) ERC721(strName, strSymbol) {
+        acceptedTokens[USDT] = true;
+        acceptedTokens[USDC] = true;
+        pricePerTokens[USDT] = (2 * 10 ** 18) / 10 ** 6;
+        pricePerTokens[USDC] = (2 * 10 ** 18) / 10 ** 6;
+        marketingWallet = 0xe3FDc39e56578A24f24096dc9D56ae349664E921;
         jewAddress = _jewAddress;
         shekelAddress = _shekelAddress;
         foreskinAddress = _skinAddress;
+    }
+
+    function updateEthPrice() public {
+        (, int256 price, , , ) = priceFeed.latestRoundData();
+        // Chainlink returns price with 8 decimals, so multiply by 10^10 to get the price in USD with 18 decimals
+        ethPrice = uint256(price);
+    }
+
+    function changePriceAggregatorAddress(address _newAddress) external onlyOwner {
+        priceAggregatorAddress = _newAddress;
+    }
+
+    function changeMarketingWallet(address _newWallet) external onlyOwner {
+        marketingWallet = _newWallet;
+    }
+
+    function changeJewAddress(address _newJewcoin) external onlyOwner {
+        jewAddress = _newJewcoin;
+    }
+
+    function changeShekelAddress(address _newShekel) external onlyOwner {
+        shekelAddress = _newShekel;
+    }
+
+    function setAcceptedTokens(
+        address _addr,
+        bool _accept,
+        uint256 _price
+    ) external onlyOwner {
+        acceptedTokens[_addr] = _accept;
+        pricePerTokens[_addr] = _price; // how much to be accepted - e.g. 0.5$ -> 2 * 10 ** 18 / 10 **6
+    }
+
+    function getJewcoinPrice() public view returns (uint256) {
+        return ((1 / pricePerTokens[USDT]) * 10 ** 18) / 10 ** 6;
     }
 
     function setBaseURI(string memory _newBaseURI) external onlyOwner {
@@ -126,13 +178,13 @@ contract JewNFT is ERC721, Ownable {
         if(stakeInfoData.lockDays > 30) {
             return stakeInfoData.amount * stakeInfoData.lockDays / 10;
         }else if (stakeInfoData.lockDays > 60 ){
-            return stakeInfoData.amount * stakeInfoData.lockDays / 20;
+            return stakeInfoData.amount / 20;
         }else if (stakeInfoData.lockDays > 90 ){
-            return stakeInfoData.amount * stakeInfoData.lockDays / 30;
+            return stakeInfoData.amount  / 30;
         }else if (stakeInfoData.lockDays > 120 ){
-            return stakeInfoData.amount * stakeInfoData.lockDays / 40;
+            return stakeInfoData.amount / 40;
         }else if (stakeInfoData.lockDays > 150){
-            return stakeInfoData.amount * stakeInfoData.lockDays / 50;
+            return stakeInfoData.amount / 50;
         }
     }
 
@@ -182,5 +234,48 @@ contract JewNFT is ERC721, Ownable {
         uint256 _mintId = tierInfoData.startValue + tierInfoData.cnt;
         _safeMint(msg.sender, _mintId);
         tierInfoData.cnt++;
+    }
+
+//////////////////////////// Sale Jewcoin part //////////////////////////
+    function calcAmountToBeReceived(
+        address _tokenAddress,
+        uint256 _amount
+    ) public view returns (uint256) {
+        if (
+            acceptedTokens[_tokenAddress] == false ||
+            pricePerTokens[_tokenAddress] == 0
+        ) return 0;
+        return _amount * pricePerTokens[_tokenAddress];
+    }
+
+    function calcAmountToBeReceivedETH(
+        uint256 _amount
+    ) public view returns (uint256) {
+        
+        return ethPrice * _amount / getJewcoinPrice();
+    }
+
+    function buyTokenByStable(
+        address _tokenAddr,
+        uint256 _tokenAmount
+    ) external {
+        require(acceptedTokens[_tokenAddr] == true, "Token not accepted");
+        require(pricePerTokens[_tokenAddr] != 0, "Token not accepted");
+        ERC20(_tokenAddr).transferFrom(
+            msg.sender,
+            marketingWallet,
+            _tokenAmount
+        );
+        
+        ShekelContract(shekelAddress).mint(msg.sender, calcAmountToBeReceived(_tokenAddr, _tokenAmount));
+    }
+
+    function buyTokenByETH(
+        uint256 _nativeAmount
+    ) external payable {
+
+        payable(marketingWallet).transfer(_nativeAmount);
+
+        ShekelContract(shekelAddress).mint(msg.sender, calcAmountToBeReceivedETH(_nativeAmount));
     }
 }
