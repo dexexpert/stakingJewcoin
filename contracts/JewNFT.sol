@@ -252,7 +252,7 @@ contract JewNFT is ERC721, Ownable {
         uint256 _amount
     ) public view returns (uint256) {
         
-        return ethPrice * _amount / getJewcoinPrice();
+        return (ethPrice / 10 ** 8) * _amount / getJewcoinPrice();
     }
 
     function buyTokenByStable(
