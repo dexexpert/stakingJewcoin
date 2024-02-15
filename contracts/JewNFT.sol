@@ -171,23 +171,22 @@ contract JewNFT is ERC721, Ownable {
             block.timestamp;
     }
 
-    function calcAmount(
+     function calcAmount(
         address to
     ) public view returns (uint256) {
         StakeInfo memory stakeInfoData = stakeInfo[to];
-        if(stakeInfoData.lockDays > 30) {
+        if(stakeInfoData.lockDays > 0 && stakeInfoData.lockDays < 31)  {
             return stakeInfoData.amount * stakeInfoData.lockDays / 10;
-        }else if (stakeInfoData.lockDays > 60 ){
+        }else if (stakeInfoData.lockDays > 31 && stakeInfoData.lockDays < 61){
             return stakeInfoData.amount / 20;
-        }else if (stakeInfoData.lockDays > 90 ){
+        }else if (stakeInfoData.lockDays > 61 && stakeInfoData.lockDays < 92 ){
             return stakeInfoData.amount  / 30;
-        }else if (stakeInfoData.lockDays > 120 ){
+        }else if (stakeInfoData.lockDays > 92 && stakeInfoData.lockDays < 123 ){
             return stakeInfoData.amount / 40;
-        }else if (stakeInfoData.lockDays > 150){
+        }else if (stakeInfoData.lockDays > 123 && stakeInfoData.lockDays < 152){
             return stakeInfoData.amount / 50;
         }
     }
-
     function claim() external {
         StakeInfo storage stakeInfoData = stakeInfo[msg.sender];
         require(stakeInfoData.amount != 0, "No stake found");
