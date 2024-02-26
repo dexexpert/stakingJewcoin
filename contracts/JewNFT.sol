@@ -6,7 +6,6 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
-
 interface ShekelContract {
     function mint(address _to, uint256 _amount) external;
 }
@@ -16,11 +15,11 @@ interface SkinContract {
 }
 
 contract JewNFT is ERC721, Ownable {
-     AggregatorV3Interface internal priceFeed;
+    AggregatorV3Interface internal priceFeed;
     uint256 public ethPrice;
     // The aggregator of the ETH/USD pair on the Goerli testnet
     address priceAggregatorAddress = 0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419;
-    
+
     address public jewAddress;
     address public shekelAddress;
     address public foreskinAddress;
@@ -73,7 +72,9 @@ contract JewNFT is ERC721, Ownable {
         ethPrice = uint256(price);
     }
 
-    function changePriceAggregatorAddress(address _newAddress) external onlyOwner {
+    function changePriceAggregatorAddress(
+        address _newAddress
+    ) external onlyOwner {
         priceAggregatorAddress = _newAddress;
     }
 
@@ -113,7 +114,7 @@ contract JewNFT is ERC721, Ownable {
     function _baseURI() internal view override returns (string memory) {
         return strBaseURI;
     }
-    
+
     function mintedSupply(uint256 _amount) public view returns (uint256) {
         TierInfo storage tierInfoData = tierInfo[_amount];
         return tierInfoData.cnt;
@@ -132,11 +133,11 @@ contract JewNFT is ERC721, Ownable {
         uint256 _maxSupply,
         uint256 _startvalue
     ) external onlyOwner {
-        require(tierInfo[_tier].maxSupply == 0,"Amount used already in past!");
+        require(tierInfo[_tier].maxSupply == 0, "Amount used already in past!");
         tierInfo[_tier].maxSupply = _maxSupply;
         tierInfo[_tier].startValue = _startvalue;
     }
-/////////////////// staking requirements part ////////////////////////////
+    /////////////////// staking requirements part ////////////////////////////
     function stake(uint256 _amount, uint256 _lockDays) external {
         StakeInfo storage stakeInfoData = stakeInfo[msg.sender];
         require(
@@ -171,19 +172,21 @@ contract JewNFT is ERC721, Ownable {
             block.timestamp;
     }
 
-     function calcAmount(
-        address to
-    ) public view returns (uint256) {
+    function calcAmount(address to) public view returns (uint256) {
         StakeInfo memory stakeInfoData = stakeInfo[to];
-        if(stakeInfoData.lockDays > 0 && stakeInfoData.lockDays < 31)  {
-            return stakeInfoData.amount * stakeInfoData.lockDays / 10;
-        }else if (stakeInfoData.lockDays > 31 && stakeInfoData.lockDays < 61){
+        if (stakeInfoData.lockDays > 0 && stakeInfoData.lockDays < 31) {
+            return (stakeInfoData.amount * stakeInfoData.lockDays) / 10;
+        } else if (stakeInfoData.lockDays > 31 && stakeInfoData.lockDays < 61) {
             return stakeInfoData.amount / 20;
-        }else if (stakeInfoData.lockDays > 61 && stakeInfoData.lockDays < 92 ){
-            return stakeInfoData.amount  / 30;
-        }else if (stakeInfoData.lockDays > 92 && stakeInfoData.lockDays < 123 ){
+        } else if (stakeInfoData.lockDays > 61 && stakeInfoData.lockDays < 92) {
+            return stakeInfoData.amount / 30;
+        } else if (
+            stakeInfoData.lockDays > 92 && stakeInfoData.lockDays < 123
+        ) {
             return stakeInfoData.amount / 40;
-        }else if (stakeInfoData.lockDays > 123 && stakeInfoData.lockDays < 152){
+        } else if (
+            stakeInfoData.lockDays > 123 && stakeInfoData.lockDays < 152
+        ) {
             return stakeInfoData.amount / 50;
         }
     }
@@ -196,46 +199,46 @@ contract JewNFT is ERC721, Ownable {
             "Wait for lock period"
         );
         ERC20(shekelAddress).transfer(msg.sender, calcAmount(msg.sender));
-        if(stakeInfoData.amount > 1000){
+        if (stakeInfoData.amount > 1000) {
             skinHolder[msg.sender] = stakeInfoData.amount;
         }
         stakeInfoData._epoch = 0;
         stakeInfoData.amount = 0;
         stakeInfoData.lockDays = 0;
     }
-/////////////////////////////foreskin part/////////////////////////////
+    /////////////////////////////foreskin part/////////////////////////////
     function isClaimableSkin() public view returns (bool) {
         // SkinHolder memory skinHolderData = skinHolder[_addr];
-        if(skinHolder[msg.sender] >= 1000 && burnFinished == true){
+        if (skinHolder[msg.sender] >= 1000 && burnFinished == true) {
             return true;
-        }else return false;
+        } else return false;
     }
 
     function claimSkin() external {
         // SkinHolder storage skinHolderData = skinHolder[msg.sender];
         require(burnFinished == true, "burn finished already ");
         require(skinHolder[msg.sender] > 1000, "Amount must be more than 1000");
-        
-        SkinContract(foreskinAddress).mint(msg.sender, skinHolder[msg.sender] / 1000);
-    }  
-//////////////////////////// NFT Mint part ////////////////////////////
+
+        SkinContract(foreskinAddress).mint(
+            msg.sender,
+            skinHolder[msg.sender] / 1000
+        );
+    }
+    //////////////////////////// NFT Mint part ////////////////////////////
     function buyNFT(uint256 _amount) external {
         TierInfo storage tierInfoData = tierInfo[_amount];
         require(
-            tierInfoData.maxSupply != 0 && ERC20(shekelAddress).balanceOf(msg.sender) >= _amount,
+            tierInfoData.maxSupply != 0 &&
+                ERC20(shekelAddress).balanceOf(msg.sender) >= _amount,
             "amount for buy is invalid, please check again"
         );
-         ERC20(shekelAddress).transferFrom(
-            msg.sender,
-            address(this),
-            _amount
-        );
+        ERC20(shekelAddress).transferFrom(msg.sender, address(this), _amount);
         uint256 _mintId = tierInfoData.startValue + tierInfoData.cnt;
         _safeMint(msg.sender, _mintId);
         tierInfoData.cnt++;
     }
 
-//////////////////////////// Sale Jewcoin part //////////////////////////
+    //////////////////////////// Sale Jewcoin part //////////////////////////
     function calcAmountToBeReceived(
         address _tokenAddress,
         uint256 _amount
@@ -250,8 +253,7 @@ contract JewNFT is ERC721, Ownable {
     function calcAmountToBeReceivedETH(
         uint256 _amount
     ) public view returns (uint256) {
-        
-        return (ethPrice / 10 ** 8) * _amount / getJewcoinPrice();
+        return ((ethPrice / 10 ** 8) * _amount) / getJewcoinPrice();
     }
 
     function buyTokenByStable(
@@ -265,16 +267,19 @@ contract JewNFT is ERC721, Ownable {
             marketingWallet,
             _tokenAmount
         );
-        
-        ShekelContract(shekelAddress).mint(msg.sender, calcAmountToBeReceived(_tokenAddr, _tokenAmount));
+
+        ShekelContract(shekelAddress).mint(
+            msg.sender,
+            calcAmountToBeReceived(_tokenAddr, _tokenAmount)
+        );
     }
 
-    function buyTokenByETH(
-        uint256 _nativeAmount
-    ) external payable {
-
+    function buyTokenByETH(uint256 _nativeAmount) external payable {
         payable(marketingWallet).transfer(_nativeAmount);
 
-        ShekelContract(shekelAddress).mint(msg.sender, calcAmountToBeReceivedETH(_nativeAmount));
+        ShekelContract(shekelAddress).mint(
+            msg.sender,
+            calcAmountToBeReceivedETH(_nativeAmount)
+        );
     }
 }

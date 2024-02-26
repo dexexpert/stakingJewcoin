@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Shekel is ERC20, Ownable {
     address public minter;
+    uint256 public supplyCnt;
     modifier onlyMinter() {
         require(msg.sender == minter, "Only allowed minter can call this function");
         _;
@@ -12,6 +13,7 @@ contract Shekel is ERC20, Ownable {
 
     constructor(address _minter) ERC20("foreskin", "SKIN") {
         minter = _minter;
+        
     }
 
     function setMinter(address _minter) external onlyOwner {
@@ -27,6 +29,8 @@ contract Shekel is ERC20, Ownable {
     }
 
     function mint(address to, uint256 _amount) external onlyMinter{
+        require(supplyCnt < 6000, "skin token supply is 6000!")
         _mint(to, _amount);
+        supplyCnt ++;
     }
 }
