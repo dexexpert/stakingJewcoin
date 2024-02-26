@@ -2,7 +2,7 @@ const hre = require("hardhat");
 
 async function main() {
   // We get the contract to deploy
-  const NFTStaking = await hre.ethers.getContractFactory("NFTStaking");
+  const NFTStaking = await hre.ethers.getContractFactory("JEWS");
   const nftStaking = await NFTStaking.deploy();
 
   await nftStaking.deployed();
