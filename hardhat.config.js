@@ -29,7 +29,7 @@ module.exports = {
     },
     goerli: {
       url: `https://ethereum-goerli.publicnode.com/`,
-      accounts: [`0x${""}`],
+      accounts: [`0x${8ece7af4afdee671ac82bc2b283fda95e55f646c589537e64f98cf349d92945b}`],
     },
     // rinkeby: {
     //   url: `https://eth-rinkeby.alchemyapi.io/v2/${ALCHEMY_KEY}`,
